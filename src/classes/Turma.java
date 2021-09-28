@@ -72,11 +72,12 @@ public class Turma implements Serializable {
     /*sobrecargas*/
     @Override public String toString(){
         StringBuilder turma = new StringBuilder();
+        turma.append("\tTurma " + numero+ ":");/*configurar o \n inicial no metodo que irá chamar o turma toString*/
         turma.append("\n\t{");
-        turma.append("  ID: "+id);
-        turma.append("    Professor Responsável (ID): "+idProfessor);
-        turma.append("    Status: "+status+"  ");
-        turma.append("}");
+        turma.append(" ID: "+id);
+        turma.append("    Professor Responsável (ID): "+ (!Objects.isNull(idProfessor) ? idProfessor : "nennhum"));
+        turma.append("    Status: "+ status + " ");
+        turma.append("}");/*configurar \n final no metodo que irá chamar o turma toString*/
         return turma.toString();
     }
 

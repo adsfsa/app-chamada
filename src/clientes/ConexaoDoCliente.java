@@ -16,7 +16,7 @@ public class ConexaoDoCliente extends Thread{
     public Cliente cliente;
     public ObjectOutputStream outputStream;
     public ObjectInputStream inputStream;
-    private boolean ativo = true;
+    private boolean ativo = false;
     private Mensagem mensagemDoServidor;
 
     /*construtores*/
@@ -29,8 +29,11 @@ public class ConexaoDoCliente extends Thread{
     public void run(){
         try{
             System.out.println("Conectado!");
+            ativo = true;
             outputStream = new ObjectOutputStream(socket.getOutputStream());
             inputStream = new ObjectInputStream(socket.getInputStream());
+
+            boolean mensagemFinalexibida = false;
 
             /*iniciar diálogo (loop)*/
             while(ativo){
@@ -68,15 +71,25 @@ public class ConexaoDoCliente extends Thread{
                         }
                     }
                 } catch (IOException | ClassNotFoundException exception) {
-                    String textoPadrao = "Digite qualquer coisa (ou aperte Enter) para sair...";
+                    /*encerrar conexao*/
+                    fechar();
+                    String textoPadrao = "";
+                    if (cliente.isConsoleAberto()){
+                        System.out.println("Desconectado!\n");
+                        textoPadrao = "Digite qualquer coisa para se reconectar...";
+                        mensagemFinalexibida = true;
+                    } else {
+                        textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
+                    }
                     AvisoDeErro erro = new AvisoDeErro(exception.getMessage(), textoPadrao);
                     System.out.println(erro.getAviso());
-                    ativo = false;
                 }
             }
 
-            /*encerrar conexao*/
-            fechar();
+            if (!mensagemFinalexibida){
+                System.out.println("Desconectado!\n");
+            }
+
         } catch (IOException exception) {
             String textoErro = exception.getMessage();
             AvisoDeErro erro = new AvisoDeErro(textoErro, null);
@@ -90,64 +103,49 @@ public class ConexaoDoCliente extends Thread{
             outputStream.close();
             socket.close();
             mensagemDoServidor = null;
-            System.in.close();
-            System.out.println("\nDesconectado!");
+            ativo = false;
         } catch (IOException exception) {
             String textoErro = exception.getMessage();
             AvisoDeErro erro = new AvisoDeErro(textoErro, null);
             System.out.println(erro.getAviso() + "\n");
-            exception.printStackTrace();
         }
     }
 
     /*métodos*/
-    public void enviarSolicitacao(String solicitacao){
-        try {
-            /*limpar mensagem anterior*/
-            mensagemDoServidor = null;
+    public void enviarSolicitacao(String solicitacao) throws IOException {
+        /*limpar mensagem anterior*/
+        mensagemDoServidor = null;
 
-            /*criar nova mensagem*/
-            Mensagem mensagemDoCliente = new Mensagem(solicitacao);
-            mensagemDoCliente.setParam("TIPO_DE_CLIENTE", cliente.getTipoDeCliente());
-            mensagemDoCliente.setParam("ID_CLIENTE", cliente.getIdCliente());
+        /*criar nova mensagem*/
+        Mensagem mensagemDoCliente = new Mensagem(solicitacao);
+        mensagemDoCliente.setParam("TIPO_DE_CLIENTE", cliente.getTipoDeCliente());
+        mensagemDoCliente.setParam("ID_CLIENTE", cliente.getIdCliente());
 
-            /*enviar mensagem*/
-            outputStream.reset();
-            outputStream.writeObject(mensagemDoCliente);
-            outputStream.flush();
-        } catch (IOException exception) {
-            String textoErro = exception.getMessage();
-            AvisoDeErro erro = new AvisoDeErro(textoErro, null);
-            System.out.println(erro.getAviso() + "\n");
-            //fechar();
-        }
+        /*enviar mensagem*/
+        outputStream.reset();
+        outputStream.writeObject(mensagemDoCliente);
+        outputStream.flush();
     }
-    public void enviarSolicitacao(String solicitacao, Map<String, Object> informacoesAdicionais){
-        try {
-            /*limpar mensagem anterior*/
-            mensagemDoServidor = null;
+    public void enviarSolicitacao(String solicitacao, Map<String, Object> informacoesAdicionais) throws IOException {
+        /*limpar mensagem anterior*/
+        mensagemDoServidor = null;
 
-            /*criar nova mensagem*/
-            Mensagem mensagemDoCliente = new Mensagem(solicitacao);
-            mensagemDoCliente.setParam("TIPO_DE_CLIENTE", cliente.getTipoDeCliente());
-            mensagemDoCliente.setParam("ID_CLIENTE", cliente.getIdCliente());
+        /*criar nova mensagem*/
+        Mensagem mensagemDoCliente = new Mensagem(solicitacao);
+        mensagemDoCliente.setParam("TIPO_DE_CLIENTE", cliente.getTipoDeCliente());
+        mensagemDoCliente.setParam("ID_CLIENTE", cliente.getIdCliente());
 
-            /*informacoes adicionais*/
-            for (Map.Entry<String, Object> entry : informacoesAdicionais.entrySet()) {
-                String chave = entry.getKey();
-                Object valor = entry.getValue();
-                setarParametros(mensagemDoCliente, chave, valor);
-            }
-
-            /*enviar mensagem*/
-            outputStream.reset();
-            outputStream.writeObject(mensagemDoCliente);
-            outputStream.flush();
-        } catch (IOException exception) {
-            String textoErro = exception.getMessage();
-            AvisoDeErro erro = new AvisoDeErro(textoErro, null);
-            System.out.println(erro.getAviso() + "\n");
+        /*informacoes adicionais*/
+        for (Map.Entry<String, Object> entry : informacoesAdicionais.entrySet()) {
+            String chave = entry.getKey();
+            Object valor = entry.getValue();
+            setarParametros(mensagemDoCliente, chave, valor);
         }
+
+        /*enviar mensagem*/
+        outputStream.reset();
+        outputStream.writeObject(mensagemDoCliente);
+        outputStream.flush();
     }
     public void setarParametros(Mensagem mensagem , String chave, Object valor){
         mensagem.setParam(chave, valor);
@@ -156,6 +154,13 @@ public class ConexaoDoCliente extends Thread{
     /*sobrecargas*/
 
     /*getters settters*/
+
+    public Socket getSocket() {
+        return socket;
+    }
+    public void setSocket(Socket socket) {
+        this.socket = socket;
+    }
     public Mensagem getMensagemDoServidor(){
         return this.mensagemDoServidor;
     }

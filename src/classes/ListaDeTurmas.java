@@ -8,13 +8,6 @@ public class ListaDeTurmas extends ArrayList<Turma> implements Serializable {
     /*variaveis globais*/
 
     /*construtores*/
-    public ListaDeTurmas() {
-        super(new ArrayList<>(Arrays.asList(new Turma[10])));
-        for (int index = 0; index < 10; index++) {
-            Turma turma = new Turma((index+1));
-            super.set(index, turma);
-        }
-    }
     public ListaDeTurmas(int capacidade) {
         super(new ArrayList<>(Arrays.asList(new Turma[capacidade])));
         for (int index = 0; index < super.size(); index++) {

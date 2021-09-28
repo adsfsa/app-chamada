@@ -14,11 +14,12 @@ public class Cliente {
     private String idCliente;
     private String tipoDeCliente;
     private Object idAdicional;
-    private String TEXTO_VERMELHO = "\u001B[31m"; /*sempre que mudar a cor, resetar para a parão depois*/
-    private String TEXT_PADRAO = "\u001B[0m";
+    private boolean ligado;
+    private boolean consoleAberto = false;
 
     /*construtores*/
     public Cliente(String idCliente, String tipoDeCliente, Object idAdicional){
+        /*iniciar id, tipo de cliente, e id adicional caso exista*/
         this.idCliente = idCliente;
         this.tipoDeCliente = tipoDeCliente;
 
@@ -27,20 +28,43 @@ public class Cliente {
             this.idAdicional = idAdicional;
         }
 
-        /*estabelecer conexão com servidor*/
-        try {
-            System.out.println("\nEstabelecendo conexão...\n");
-            Socket socket = new Socket("localhost", 5555);
-            conexaoDoCliente = new ConexaoDoCliente(socket, this);
-            conexaoDoCliente.start();
+        /*exibir mensagem inicial*/
+        ligado = true;
+        System.out.println("\nSistema ligado.\n");
 
-            /*iniciar interface (loop)*/
-            executarInterface();
-        } catch (IOException exception){
-            /*exceção*/
-            AvisoDeErro erro = new AvisoDeErro(exception.getMessage(), null);
-            System.out.println(erro.getAviso());
+        /*começar conexão. o sistema deve continuar ligado mesmo se o servidor cair. se o servidor cair, apenas a conexão é encerrada*/
+        while(ligado){
+            /*exibir mensagem de tentativa, apenas uma vez*/
+            boolean mostrarConexao = true;
+            while(mostrarConexao){
+                System.out.println("Tentando conexão...\n");
+                mostrarConexao = false;
+            }
+
+            /*estabelecer conexão com servidor*/
+            while(true){
+                try {
+                    if (conexaoDoCliente == null) {
+                        Socket socket = new Socket("localhost", 5555);
+                        conexaoDoCliente = new ConexaoDoCliente(socket, this);
+                        conexaoDoCliente.start();
+                    }
+
+                    /*iniciar interface (loop)*/
+                    executarInterface();
+
+                    /*resetar loop de conexão*/
+                    conexaoDoCliente = null;
+                    break;
+                } catch (IOException exception){
+                    conexaoDoCliente = null;
+                }
+            }
         }
+
+        /*exibir mensagem final*/
+        System.out.println("Sistema desligado.");
+
     }
 
     /*principais*/
@@ -56,18 +80,31 @@ public class Cliente {
             /*menu, escolher uma solicitação*/
             String solicitacao = selecionarSolicitacao(tipoDeCliente);
             if (Objects.equals(solicitacao, "SAIR")){
-                conexaoDoCliente.enviarSolicitacao("ENCERRAR_CONEXAO");
+                try {
+                    conexaoDoCliente.enviarSolicitacao("ENCERRAR_CONEXAO");
+                } catch (IOException exception) {
+                    String textoErro = exception.getMessage();
+                    String textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
+                    AvisoDeErro erro = new AvisoDeErro(textoErro, textoPadrao);
+                    System.out.println("\n" + erro.getAviso());
+                    conexaoDoCliente.setAtivo(false);
+                    ligado = false;
+                    break;
+                }
                 while(true){
                     if (Objects.isNull(conexaoDoCliente.getMensagemDoServidor())){
                         try {
                             Thread.sleep(1);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        } catch (InterruptedException exception) {
+                            AvisoDeErro erro = new AvisoDeErro((exception.getMessage()), null);
+                            System.out.println("\n" + erro.getAviso());
                         }
                     }
                     else {
                         Mensagem mensagemDoServidor = conexaoDoCliente.getMensagemDoServidor();
                         if(Objects.equals(mensagemDoServidor.getParam("ADICIONAL"), "ENCERRAR_CONEXAO")){
+                            conexaoDoCliente.setAtivo(false);
+                            ligado = false;
                             break;
                         }
                     }
@@ -75,17 +112,19 @@ public class Cliente {
                 executando = false;
                 conexaoDoCliente.setMensagemDoServidor(null);
                 continue;
-            } else if(Objects.isNull(solicitacao)){
+            }
+            else if(Objects.isNull(solicitacao)){
                 executando = false;
                 continue;
             }
 
             /*excolher turma e solicitar para o servidor*/
             Mensagem mensagemDoServidor = gerarSolicitacao(solicitacao, null);
-            if (!conexaoDoCliente.getAtivo()){
-                /*sair do loop de interface se a conexão estivar desativada*/
+            if (!conexaoDoCliente.getAtivo() || Objects.isNull(mensagemDoServidor)){
+                /*sair do loop de interface se a conexão estivar desativada ou se a mensagem for nula*/
                 break;
-            } else if(Objects.equals(mensagemDoServidor.getSolicitacao(), "CANCELAR_SOLICITACAO")){
+            }
+            else if(Objects.equals(mensagemDoServidor.getSolicitacao(), "CANCELAR_SOLICITACAO")){
                 System.out.println("Solicitação Cancelada.");
                 continue;
             }
@@ -117,8 +156,9 @@ public class Cliente {
                                     break;
                                 }
                                 Thread.sleep(1);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
+                            } catch (InterruptedException exception) {
+                                AvisoDeErro erro = new AvisoDeErro((exception.getMessage()), null);
+                                System.out.println("\n" + erro.getAviso());
                             }
                         }
                         else {
@@ -130,11 +170,10 @@ public class Cliente {
                                 String idProfessor = (String) mensagem.getParam("ID_PROFESSOR");
                                 if (Objects.equals(idProfessor, idCliente)) {
                                     int matriculaDoAluno = (Integer) mensagem.getParam("MATRICULA_DO_ALUNO");
-                                    StringBuilder alunoPresente = new StringBuilder();
-                                    alunoPresente.append("----------Presença Registrada----------\n")
-                                            .append("Aluno (Matrícula): " + matriculaDoAluno)
-                                            .append("\n---------------------------------------\n")
-                                            .append("\nAlunos Presentes: " + (quantidadeDeAlunosPresentes+1) + "/" + tamanhoDaTurma + ".\n");
+                                    String alunoPresente = "----------Presença Registrada----------\n"
+                                            + "Aluno (Matrícula): " + matriculaDoAluno
+                                            + "\n---------------------------------------\n"
+                                            + "\nAlunos Presentes: " + (quantidadeDeAlunosPresentes + 1) + "/" + tamanhoDaTurma + ".\n";
                                     System.out.println(alunoPresente);
                                     quantidadeDeAlunosPresentes++;
                                     conexaoDoCliente.setMensagemDoServidor(null);
@@ -199,6 +238,7 @@ public class Cliente {
                     System.out.println(selecao);
 
                     try {
+                        consoleAberto = true;
                         int opcao = console.nextInt();
                         switch (opcao) {
                             case 1 -> {
@@ -212,18 +252,24 @@ public class Cliente {
                             }
                             default -> {
                                 console.nextLine();
-                                System.out.println("\nOpção Inválida, tente novamente.");
+                                if (conexaoDoCliente.getAtivo()){
+                                    System.out.println("\nOpção Inválida, tente novamente.");
+                                }
                             }
+                        }
+                        if (!Objects.isNull(solicitacao)){
+                            consoleAberto = false;
                         }
                     } catch (InputMismatchException e) {
                         console.nextLine();
-                        System.out.println("\nInserção inválida, tente novamente.");
+                        if (conexaoDoCliente.getAtivo()){
+                            System.out.println("\nInserção inválida, tente novamente.");
+                        }
                     } catch (NoSuchElementException | IllegalStateException exception) {
                         try {
                             console.nextLine();
-                        } catch (NoSuchElementException e) {
-
-                        }
+                        } catch (NoSuchElementException e) {}
+                        consoleAberto = false;
                         break;
                     }
                 }
@@ -237,6 +283,7 @@ public class Cliente {
                             .append("\n---------------------------------------------\n");
                     System.out.println(selecao);
                     try {
+                        consoleAberto = true;
                         int opcao = console.nextInt();
                         switch (opcao) {
                             case 1 -> {
@@ -247,18 +294,24 @@ public class Cliente {
                             }
                             default -> {
                                 console.nextLine();
-                                System.out.println("Opção Inválida.");
+                                if (conexaoDoCliente.getAtivo()){
+                                    System.out.println("\nOpção Inválida.");
+                                }
                             }
+                        }
+                        if (!Objects.isNull(solicitacao)){
+                            consoleAberto = false;
                         }
                     } catch (InputMismatchException e) {
                         console.nextLine();
-                        System.out.println("\nInserção inválida, tente novamente.");
+                        if (conexaoDoCliente.getAtivo()){
+                            System.out.println("\nInserção inválida, tente novamente.");
+                        }
                     } catch (NoSuchElementException | IllegalStateException exception) {
                         try {
                             console.nextLine();
-                        } catch (NoSuchElementException e) {
-
-                        }
+                        } catch (NoSuchElementException e) {}
+                        consoleAberto = false;
                         break;
                     }
                 }
@@ -272,15 +325,24 @@ public class Cliente {
         /*enviar solicitação de exibição de turmas*/
         Map<String, Object> adicionais = new HashMap<>();
         adicionais.put("ADICIONAL", solicitacao);
-        conexaoDoCliente.enviarSolicitacao("EXIBIR_TURMAS", adicionais);
+        try {
+            conexaoDoCliente.enviarSolicitacao("EXIBIR_TURMAS", adicionais);
+        } catch (IOException exception) {
+            String textoErro = exception.getMessage();
+            String textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
+            AvisoDeErro erro = new AvisoDeErro(textoErro, textoPadrao);
+            System.out.println("\n" + erro.getAviso());
+            return adicionais;
+        }
 
         /*aguardar resposta do servidor*/
         while(true){/*loop de espera / loop exibir turmas*/
             if (Objects.isNull(conexaoDoCliente.getMensagemDoServidor())){
                 try {
                     Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                } catch (InterruptedException exception) {
+                    AvisoDeErro erro = new AvisoDeErro((exception.getMessage()), null);
+                    System.out.println("\n" + erro.getAviso());
                 }
             }
             else {
@@ -290,7 +352,9 @@ public class Cliente {
                 if (Objects.equals(clienteReferencia, idCliente)){
                     /*exibir turmas*/
                     int quantidadeDeTurmasDisponiveis = (Integer) mensagemDoServidor.getParam("QUANTIDADE_DE_TURMAS_DISPONIVEIS");
-                    ArrayList<Turma> arrayTurmasDisponiveis = (ArrayList<Turma>) mensagemDoServidor.getParam("TURMAS_DISPONIVEIS");
+
+                    List<Turma> listTurmas = Arrays.asList((Turma[]) mensagemDoServidor.getParam("TURMAS_DISPONIVEIS"));
+                    ArrayList<Turma> arrayTurmasDisponiveis = new ArrayList<>(listTurmas);
 
                     /*nao exbir mensagens de turma para alunos (ja será exibida outra mensagem em outro padrao)*/
                     boolean condicao1 = (Objects.equals(mensagemDoServidor.getParam("ADICIONAL"), "EXIBIR_TURMAS"));
@@ -328,30 +392,30 @@ public class Cliente {
                         }
 
                         System.out.println(soutTurmasDisponiveis);
-
-                        /*limpar mensagem do servidor*/
-                        conexaoDoCliente.setMensagemDoServidor(null);
                     }
                     else {
                         System.out.println("Insira o número da turma (ex.: Turma 1 -> 1), ou 0 para cancelar.\n");
-
-                        /*limpar mensagem do servidor*/
-                        conexaoDoCliente.setMensagemDoServidor(null);
                     }
+                    /*limpar mensagem do servidor*/
+                    conexaoDoCliente.setMensagemDoServidor(null);
 
                     /*esperar cliente selecionar turma (loop seleção de turma)*/
                     Scanner console = new Scanner(System.in);
                     while(adicionais.size() == 1){
                         /*1 porque ja tem a informação ADICIONAL inserida*/
                         try{
+                            consoleAberto = true;
                             int index = console.nextInt();
                             if (conexaoDoCliente.getAtivo()){
                                 if (index == 0){
                                     /*sair do loop de seleção de turma*/
+                                    consoleAberto = false;
                                     break;
                                 }
                                 else if (index < 0 || index > quantidadeDeTurmasDisponiveis) {
-                                    System.out.println("\nTurma inválida. Tente novamente, ou insira 0 para cancelar.\n");
+                                    if (conexaoDoCliente.getAtivo()){
+                                        System.out.println("\nTurma inválida. Tente novamente, ou insira 0 para cancelar.\n");
+                                    }
                                 }
                                 else {
                                     /*adicionar informacoes adicionais*/
@@ -370,13 +434,14 @@ public class Cliente {
                                 /*sair do loop de seleção de turma*/
                                 break;
                             }
+                            consoleAberto = false;
                         } catch (InputMismatchException exception){
-                            //exception.getStackTrace();
                             console.nextLine();
                             if(conexaoDoCliente.getAtivo()){
                                 System.out.println("\nInserção inválida. Tente novamente, ou insira 0 para cancelar.\n");
                             }
                             else {
+                                consoleAberto = false;
                                 break;
                             }
                         }  catch (NoSuchElementException | IllegalStateException exception){
@@ -385,6 +450,7 @@ public class Cliente {
                             } catch (NoSuchElementException e){}
 
                             /*sair do loop de seleção de turma*/
+                            consoleAberto = false;
                             break;
                         }
                     }
@@ -424,13 +490,29 @@ public class Cliente {
                 }
 
                 /*enviar dados*/
-                conexaoDoCliente.enviarSolicitacao(solicitacao, turmaSelecionada);
+                try {
+                    conexaoDoCliente.enviarSolicitacao(solicitacao, turmaSelecionada);
+                } catch (IOException exception) {
+                    String textoErro = exception.getMessage();
+                    String textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
+                    AvisoDeErro erro = new AvisoDeErro(textoErro, textoPadrao);
+                    System.out.println("\n" + erro.getAviso());
+                    return null;
+                }
             }
 
         }
         else{
             /*enviar dados*/
-            conexaoDoCliente.enviarSolicitacao(solicitacao, informacoesAdicionais);
+            try {
+                conexaoDoCliente.enviarSolicitacao(solicitacao, informacoesAdicionais);
+            } catch (IOException exception) {
+                String textoErro = exception.getMessage();
+                String textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
+                AvisoDeErro erro = new AvisoDeErro(textoErro, textoPadrao);
+                System.out.println("\n" + erro.getAviso());
+                return null;
+            }
         }
 
         /*receber mensagem do servidor*/
@@ -438,8 +520,9 @@ public class Cliente {
             if (Objects.isNull(conexaoDoCliente.getMensagemDoServidor())){
                 try {
                     Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                } catch (InterruptedException exception) {
+                    AvisoDeErro erro = new AvisoDeErro((exception.getMessage()), null);
+                    System.out.println("\n" + erro.getAviso());
                 }
             }
             else {
@@ -475,5 +558,11 @@ public class Cliente {
     }
     public void setIdAdicional(Object idAdicional) {
         this.idAdicional = idAdicional;
+    }
+    public boolean isConsoleAberto() {
+        return consoleAberto;
+    }
+    public void setConsoleAberto(boolean consoleAberto) {
+        this.consoleAberto = consoleAberto;
     }
 }

@@ -1,5 +1,6 @@
 package servidor;
 
+import classes.AvisoDeErro;
 import classes.ListaDeTurmas;
 import classes.Turma;
 
@@ -21,6 +22,7 @@ public class Servidor {
         try{
             /*criar servidor*/
             this.serverSocket = new ServerSocket(5555);
+            System.out.println("\nServidor ativo.");
 
             /*rodar servidor*/
             while(ativo){
@@ -33,7 +35,8 @@ public class Servidor {
                 clientesConectados.add(conexaoDoServidor);
             }
         } catch (IOException exception) {
-            exception.printStackTrace();
+            AvisoDeErro erro = new AvisoDeErro((exception.getMessage()), null);
+            System.out.println("\n" + erro.getAviso());
         }
     }
 

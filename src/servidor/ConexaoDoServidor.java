@@ -8,11 +8,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.sql.Array;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 
 public class ConexaoDoServidor extends Thread{
     /*variaveis globais*/
@@ -82,6 +80,7 @@ public class ConexaoDoServidor extends Thread{
             inputStream.close();
             outputStream.close();
             socket.close();
+            servidor.getClientesConectados().remove(this);
             System.out.println("Um cliente se desconectou - (" + gerarDataHora() + ")");
         } catch (IOException exception) {
             String textoErro = exception.getMessage();
@@ -163,7 +162,7 @@ public class ConexaoDoServidor extends Thread{
                     break;
             }
             mensagemDoServidor.setParam("QUANTIDADE_DE_TURMAS_DISPONIVEIS", turmasDisponiveis.size());
-            mensagemDoServidor.setParam("TURMAS_DISPONIVEIS", turmasDisponiveis);
+            mensagemDoServidor.setParam("TURMAS_DISPONIVEIS", turmasDisponiveis.toArray(new Turma[0]));
         }
         else {
             /*setar parametros da mensagem de retorno*/

@@ -1,9 +1,7 @@
 package classes;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class Mensagem implements Serializable {
     /*variaveis globais*/
@@ -57,16 +55,33 @@ public class Mensagem implements Serializable {
     /*métodos*/
     public String toString(String idCliente){
         StringBuilder mensagem = new StringBuilder();
-        if (!Objects.equals(this.solicitacao, "MENSAGEM_DE_RESPOSTA")){
+        if (!Objects.equals(this.solicitacao, "MENSAGEM_DO_SERVIDOR")){
             mensagem = new StringBuilder("Solicitação: " + this.solicitacao + "\n");
         }
         mensagem.append("Parâmetros:");
         for(Object parametro : params.keySet()){
-            if (parametro.equals("ID_CLIENTE")){
-                mensagem.append("\n\t").append(parametro).append(" -> ").append(params.get(parametro) + " (Você)");
+            mensagem.append("\n\t").append(parametro).append(" -> ");
+            if (Objects.equals(parametro, "CLIENTE_REFERENCIA")){
+                mensagem.append(params.get(parametro)).append(" (Você)");
             }
-            else{
-                mensagem.append("\n\t").append(parametro).append(" -> ").append(params.get(parametro));
+            else if(Objects.equals(parametro, "TURMAS_DISPONIVEIS")){
+                List<Turma> listTurmas = Arrays.asList((Turma[]) params.get(parametro));
+                ArrayList<Turma> arrayTurmas = new ArrayList<>(listTurmas);
+                mensagem.append("\n[\n");
+                for (int index = 0; index < arrayTurmas.size(); index++){
+                    Turma turma = arrayTurmas.get(index);
+                    mensagem.append(turma);
+                    if (!((index+1) == arrayTurmas.size())){
+                        mensagem.append(",\n\n");
+                    }
+                    else{
+                        mensagem.append("\n]");
+                    }
+                }
+            }
+
+            else {
+                mensagem.append(params.get(parametro));
             }
         }
         return mensagem.toString();
@@ -75,7 +90,7 @@ public class Mensagem implements Serializable {
     /*sobrecargas*/
     @Override public String toString(){
         StringBuilder mensagem = new StringBuilder();
-        if (!Objects.equals(this.solicitacao, "MENSAGEM_DE_RESPOSTA")){
+        if (!Objects.equals(this.solicitacao, "MENSAGEM_DO_SERVIDOR")){
             mensagem.append("Solicitação: ").append(this.solicitacao).append("\n");
         }
         mensagem.append("Parâmetros:");
