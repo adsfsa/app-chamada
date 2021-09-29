@@ -232,7 +232,7 @@ public class ConexaoDoServidor extends Thread{
                             inicioChamada
                                     .append("\n----------Chamada Iniciada----------\n")
                                     .append(dataHoraInicioChamada + "\n")
-                                    .append("ID do professor: " + idProfessor + "\n")
+                                    .append("ID do Professor: " + idProfessor + "\n")
                                     .append("ID da Turma: " + idTurma)
                                     .append("\n-------------------------------------\n");
                             System.out.println(inicioChamada);
