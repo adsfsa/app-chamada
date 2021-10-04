@@ -33,7 +33,7 @@ public class ConexaoDoCliente extends Thread{
             outputStream = new ObjectOutputStream(socket.getOutputStream());
             inputStream = new ObjectInputStream(socket.getInputStream());
 
-            boolean mensagemFinalexibida = false;
+            boolean mensagemFinalExibida = false;
 
             /*iniciar diálogo (loop)*/
             while(ativo){
@@ -76,8 +76,8 @@ public class ConexaoDoCliente extends Thread{
                     String textoPadrao = "";
                     if (cliente.isConsoleAberto()){
                         System.out.println("Desconectado!\n");
-                        textoPadrao = "Digite qualquer coisa para se reconectar...";
-                        mensagemFinalexibida = true;
+                        textoPadrao = "Digite qualquer coisa para voltar ao menu...";
+                        mensagemFinalExibida = true;
                     } else {
                         textoPadrao = "Você será desconectado, e tentaremos uma reconexão.";
                     }
@@ -86,7 +86,7 @@ public class ConexaoDoCliente extends Thread{
                 }
             }
 
-            if (!mensagemFinalexibida){
+            if (!mensagemFinalExibida){
                 System.out.println("Desconectado!\n");
             }
 

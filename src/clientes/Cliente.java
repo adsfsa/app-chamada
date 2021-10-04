@@ -356,6 +356,8 @@ public class Cliente {
                     List<Turma> listTurmas = Arrays.asList((Turma[]) mensagemDoServidor.getParam("TURMAS_DISPONIVEIS"));
                     ArrayList<Turma> arrayTurmasDisponiveis = new ArrayList<>(listTurmas);
 
+                    ArrayList<Integer> arrayNumerosDasTurmas = new ArrayList<>(Arrays.asList(new Integer[quantidadeDeTurmasDisponiveis]));
+
                     /*nao exbir mensagens de turma para alunos (ja será exibida outra mensagem em outro padrao)*/
                     boolean condicao1 = (Objects.equals(mensagemDoServidor.getParam("ADICIONAL"), "EXIBIR_TURMAS"));
                     boolean condicao2 = (Objects.equals(tipoDeCliente, "ALUNO"));
@@ -382,6 +384,7 @@ public class Cliente {
                             .append("[\n"); /*abrir colchete*/
                             for (int index = 0; index<quantidadeDeTurmasDisponiveis; index++){
                                 Turma turma = arrayTurmasDisponiveis.get(index);
+                                arrayNumerosDasTurmas.set(index, turma.getNumero());
                                 soutTurmasDisponiveis.append("\tTurma ").append(turma.getNumero()).append(" -> ID: ").append(turma.getId());
                                 /*ainda não é ultimo? ponha ; e um espaço. é o ultimo? então feche o colchete*/
                                 soutTurmasDisponiveis.append(index+1 != quantidadeDeTurmasDisponiveis ? ",\n" : "\n]");
@@ -394,6 +397,10 @@ public class Cliente {
                         System.out.println(soutTurmasDisponiveis);
                     }
                     else {
+                        for (int index = 0; index<quantidadeDeTurmasDisponiveis; index++){
+                            Turma turma = arrayTurmasDisponiveis.get(index);
+                            arrayNumerosDasTurmas.set(index, turma.getNumero());
+                        }
                         System.out.println("Insira o número da turma (ex.: Turma 1 -> 1), ou 0 para cancelar.\n");
                     }
                     /*limpar mensagem do servidor*/
@@ -405,27 +412,28 @@ public class Cliente {
                         /*1 porque ja tem a informação ADICIONAL inserida*/
                         try{
                             consoleAberto = true;
-                            int index = console.nextInt();
+                            int numeroSelecionado = console.nextInt();
                             if (conexaoDoCliente.getAtivo()){
-                                if (index == 0){
+                                if (numeroSelecionado == 0){
                                     /*sair do loop de seleção de turma*/
                                     consoleAberto = false;
                                     break;
                                 }
-                                else if (index < 0 || index > quantidadeDeTurmasDisponiveis) {
+                                else if (numeroSelecionado < 0 || !arrayNumerosDasTurmas.contains(numeroSelecionado)) {
                                     if (conexaoDoCliente.getAtivo()){
                                         System.out.println("\nTurma inválida. Tente novamente, ou insira 0 para cancelar.\n");
                                     }
                                 }
                                 else {
                                     /*adicionar informacoes adicionais*/
-                                    adicionais.put("ID_TURMA", arrayTurmasDisponiveis.get(index-1).getId());
-                                    adicionais.put("NUMERO_TURMA", index);
+                                    int indexOf = arrayNumerosDasTurmas.indexOf(numeroSelecionado);
+                                    adicionais.put("ID_TURMA", arrayTurmasDisponiveis.get(indexOf).getId());
+                                    adicionais.put("NUMERO_TURMA", numeroSelecionado);
                                     if(tipoDeCliente.equals("ALUNO")){
                                         adicionais.put("MATRICULA_DO_ALUNO", idAdicional);
                                     }
                                     if (solicitacao.equals("ENCERRAMENTO_DE_CHAMADA")){
-                                        String dataHoraInicioChamada = arrayTurmasDisponiveis.get(index-1).getDataHoraInicioChamada();
+                                        String dataHoraInicioChamada = arrayTurmasDisponiveis.get(indexOf).getDataHoraInicioChamada();
                                         adicionais.put("DATAHORA_INICIO_CHAMADA", dataHoraInicioChamada);
                                     }
                                 }
