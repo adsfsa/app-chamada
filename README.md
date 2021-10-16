@@ -2,7 +2,7 @@
 
 ### Comunicação Clientes-Servidor utilizando Sockets e multithreads.
 
-:::image type="content" source="documents/screenshots/imagem-1-(app-geral).png" alt-text="screenshot-app-chamada":::
+![screenshot-app-chamada](https://user-images.githubusercontent.com/77688036/137595496-8119052d-c2ed-4c51-b9c6-edf4281c767e.png)
 
 **Linguagem: Java (JDK 17).**
 
